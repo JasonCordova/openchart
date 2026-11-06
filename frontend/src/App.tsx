@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 
-const PriceMap = lazy(() => import('./components/PriceMap'))
+const PriceMap = lazy(() => import('./components/PriceMap/PriceMap'))
 
 export default function App() {
   const [page, setPage] = useState<'landing' | 'leaving' | 'entering' | 'workspace'>('landing')

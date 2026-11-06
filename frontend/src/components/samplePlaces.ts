@@ -1,5 +1,7 @@
 ﻿// Sample cities from the original integration, not hospital or pricing data.
-export const samplePlaces: { name: string; coords: [number, number] }[] = [
+export type Place = { name: string; coords: [number, number] }
+
+export const samplePlaces: Place[] = [
     // Northeast
     { name: 'Jersey City, NJ', coords: [-74.0776, 40.7282] },
     { name: 'Hoboken, NJ', coords: [-74.0324, 40.7440] },

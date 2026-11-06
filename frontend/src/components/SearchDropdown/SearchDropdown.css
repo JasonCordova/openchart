@@ -1,0 +1,43 @@
+.search-dropdown {
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-rows: 0fr;
+  border: 1px solid rgb(40 24 66 / 10%);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgb(30 20 50 / 14%), 0 2px 6px rgb(30 20 50 / 5%);
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: grid-template-rows 200ms ease-in-out, opacity 200ms ease-in-out,
+    transform 200ms ease-in-out, visibility 0s 200ms;
+}
+
+.search-dropdown[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.search-dropdown__content { min-height: 0; overflow: hidden; border-radius: inherit; }
+.search-dropdown__filters { padding: 18px 18px 16px; border-bottom: 1px solid #f0edf4; }
+.search-dropdown__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #5d556a; font-size: 12px; font-weight: 600; }
+.search-dropdown__soon { color: #97909f; font-size: 10px; font-weight: 400; }
+.search-dropdown__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.search-dropdown__chips button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid #e9e5ee; border-radius: 999px; background: #faf9fc; color: #9b94a4; font: inherit; font-size: 11px; cursor: default; }
+.search-dropdown__chips svg { width: 13px; height: 13px; }
+.search-dropdown__results-heading { display: flex; justify-content: space-between; gap: 12px; padding: 14px 20px 6px; color: #948b9e; font-size: 10px; font-weight: 500; }
+.search-dropdown__list { max-height: min(300px, max(120px, calc(100dvh - 330px))); margin: 0; padding: 0 8px 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d9d2e3 transparent; list-style: none; }
+.search-dropdown__empty { margin: 0; padding: 20px; color: #8a8394; font-size: 13px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .search-dropdown { transition: none; transform: none; }
+}

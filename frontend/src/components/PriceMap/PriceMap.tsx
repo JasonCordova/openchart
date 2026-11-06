@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
-import { samplePlaces } from './samplePlaces'
+import { samplePlaces, type Place } from '../samplePlaces'
+import MapSearch from '../MapSearch/MapSearch'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './PriceMap.css'
 
@@ -80,7 +81,6 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
   const mainRef = useRef<HTMLElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const popupRef = useRef<mapboxgl.Popup | null>(null)
-  const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
 
@@ -218,14 +218,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     }
   }, [onReady])
 
-  function searchPlaces(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!query.trim()) return
-    const place = samplePlaces.find(({ name }) => name.toLowerCase().includes(query.trim().toLowerCase()))
-    if (!place) {
-      setMessage('No sample city found. Choose a city from the search suggestions.')
-      return
-    }
+  function selectPlace(place: Place) {
     const map = mapRef.current
     if (!map || isLoading) return
     setMessage('')
@@ -243,22 +236,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         <a className="wordmark price-map__home" href="./" aria-label="OpenChart home">
           <span>OpenChart<span className="title-period">.</span></span>
         </a>
-        <form className="price-map__search" onSubmit={searchPlaces} role="search">
-          <input
-            type="search" aria-label="Search sample cities" placeholder="Search sample cities…"
-            list="sample-cities" value={query} onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => { if (event.key === 'Escape') setQuery('') }}
-          />
-          <button type="submit" disabled={isLoading} aria-label="Search cities" title="Search cities">
-            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m15.5 15.5 5 5" />
-            </svg>
-          </button>
-          <datalist id="sample-cities">
-            {samplePlaces.map(({ name }) => <option key={name} value={name} />)}
-          </datalist>
-        </form>
+        <MapSearch places={samplePlaces} disabled={isLoading} onSelect={selectPlace} />
       </header>
       {message && (
         <div className="price-map__status" role="status">

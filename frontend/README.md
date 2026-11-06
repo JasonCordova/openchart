@@ -28,7 +28,7 @@ The build command checks TypeScript and creates the static production site in `d
 
 ## Mapbox explorer
 
-`src/components/PriceMap.tsx` owns the map, with styles in `PriceMap.css` and the original sample city data in `samplePlaces.ts`. Vite reads the existing `REACT_APP_MAPBOX_TOKEN` variable from `frontend/.env`:
+`src/components/PriceMap/PriceMap.tsx` owns the map, with styles in `src/components/PriceMap/PriceMap.css` and the original sample city data in `src/components/samplePlaces.ts`. Vite reads the existing `REACT_APP_MAPBOX_TOKEN` variable from `frontend/.env`:
 
 ```dotenv
 REACT_APP_MAPBOX_TOKEN=your_public_mapbox_access_token
@@ -39,5 +39,7 @@ Restart the development server after changing `.env`. The token must be a public
 The map starts over the contiguous US and includes clustered pins, city popups, sample city search, location tracking, zoom buttons, and a compass. Click the arrow-shaped location button to request location access. Location requires HTTPS or localhost and browser permission. The OpenChart wordmark returns to the landing page.
 
 The pins are sample cities from the previous integration, not hospital records or procedure prices. Replace the sample data when hospital data becomes available.
+
+The search UI lives in `src/components/MapSearch/`, with reusable dropdown and result-row components in `src/components/SearchDropdown/` and `src/components/SearchResult/`. The custom dropdown matches the field width and opens and closes over 200ms with ease-in-out timing. Select a city with the mouse or Arrow keys and Enter; Escape or clicking outside closes the panel. Location, Price, and Procedure filters are disabled placeholders for future functionality.
 
 The background uses soft radial gradients on one gently moving layer, without blur or backdrop filters. The colors move together within a fixed viewport so they remain blended when zooming. Animation starts paused when the visitor prefers reduced motion, and the footer’s Play/Pause motion button lets visitors control it. DM Sans loads from Google Fonts, with local system-font fallbacks.
