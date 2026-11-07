@@ -1,47 +1,31 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import mapboxgl from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import { samplePlaces, type Place } from '../samplePlaces'
 import MapSearch from '../MapSearch/MapSearch'
+import { filterPlacesByState } from '../placeFilters'
+import { getStateBoundaryData } from './stateBoundaries'
+import HospitalCard from './HospitalCard'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import './PriceMap.css'
 
 const CONTIGUOUS_US: mapboxgl.LngLatBoundsLike = [[-125.5, 24], [-66, 49.8]]
 const PAN_LIMIT: mapboxgl.LngLatBoundsLike = [[-130, 20], [-60, 53]]
-const places: FeatureCollection<Point, { name: string }> = {
-  type: 'FeatureCollection',
-  features: samplePlaces.map(({ name, coords }) => ({
-    type: 'Feature',
-    properties: { name },
-    geometry: { type: 'Point', coordinates: coords },
-  })),
+const formatPrice = new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+})
+const placesByName = new Map(samplePlaces.map((place) => [place.name, place]))
+function toPlacesData(places: Place[]): FeatureCollection<Point, { name: string; price: number }> {
+  return {
+    type: 'FeatureCollection',
+    features: places.map(({ name, coords, price }) => ({
+      type: 'Feature',
+      properties: { name, price },
+      geometry: { type: 'Point', coordinates: coords },
+    })),
+  }
 }
-
-// The original pin helpers weren't included; draw a crisp pin at twice its display size.
-function makePinImage() {
-  const canvas = document.createElement('canvas')
-  // Leave transparent room around the pin so its shadow isn't clipped.
-  canvas.width = 80
-  canvas.height = 104
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Canvas is unavailable')
-  context.translate(8, 8)
-  context.shadowColor = 'rgba(0, 0, 0, 0.4)'
-  context.shadowBlur = 6
-  context.shadowOffsetY = 3
-  context.beginPath()
-  context.moveTo(32, 84)
-  context.bezierCurveTo(26, 72, 4, 51, 4, 30)
-  context.arc(32, 30, 28, Math.PI, 0)
-  context.bezierCurveTo(60, 51, 38, 72, 32, 84)
-  context.fillStyle = '#7050bd'
-  context.fill()
-  return context.getImageData(0, 0, canvas.width, canvas.height)
-}
-
-const bySize = (base: number): mapboxgl.ExpressionSpecification => [
-  'step', ['get', 'point_count'], base, 10, base * 1.15, 50, base * 1.3,
-]
 
 function installLocationIcon(container: HTMLElement) {
   const observer = new MutationObserver(insertIcon)
@@ -83,6 +67,74 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
   const popupRef = useRef<mapboxgl.Popup | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [selectedState, setSelectedState] = useState('')
+  const [hospitalInfo, setHospitalInfo] = useState<{ place: Place; container: HTMLElement } | null>(null)
+  const filteredPlaces = useMemo(() => filterPlacesByState(samplePlaces, selectedState), [selectedState])
+  const sourceData = useMemo(() => toPlacesData(filteredPlaces), [filteredPlaces])
+  const sourceDataRef = useRef(sourceData)
+  const stateBoundaryData = useMemo(() => getStateBoundaryData(selectedState), [selectedState])
+  const stateBoundaryDataRef = useRef(stateBoundaryData)
+  const markersRef = useRef(new Map<string, mapboxgl.Marker>())
+
+  const openHospitalCard = useCallback((place: Place) => {
+    const map = mapRef.current
+    if (!map) return
+    setMessage('')
+    popupRef.current?.remove()
+    const container = document.createElement('div')
+    const popup = new mapboxgl.Popup({
+      className: 'hospital-popup', offset: 18, maxWidth: '292px',
+      closeButton: false, focusAfterOpen: false,
+    }).setLngLat(place.coords).setDOMContent(container).addTo(map)
+    popupRef.current = popup
+    setHospitalInfo({ place, container })
+    popup.on('close', () => {
+      if (popupRef.current === popup) {
+        popupRef.current = null
+        setHospitalInfo(null)
+      }
+    })
+    map.flyTo({ center: place.coords, zoom: Math.max(map.getZoom(), 14), offset: [0, 140] })
+  }, [])
+
+  function closeHospitalCard() {
+    popupRef.current?.remove()
+    mapRef.current?.getCanvas().focus({ preventScroll: true })
+  }
+
+  useEffect(() => {
+    sourceDataRef.current = sourceData
+    stateBoundaryDataRef.current = stateBoundaryData
+    const map = mapRef.current
+    const source = map?.getSource('places') as mapboxgl.GeoJSONSource | undefined
+    if (!map || !source) return
+
+    for (const marker of markersRef.current.values()) marker.remove()
+    markersRef.current.clear()
+    popupRef.current?.remove()
+    popupRef.current = null
+    source.setData(sourceData)
+    const boundarySource = map.getSource('selected-state') as mapboxgl.GeoJSONSource | undefined
+    boundarySource?.setData(stateBoundaryData)
+    if (filteredPlaces.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds()
+      const boundary = stateBoundaryData.features[0]
+      if (boundary) {
+        const polygons = boundary.geometry.type === 'Polygon'
+          ? [boundary.geometry.coordinates] : boundary.geometry.coordinates
+        for (const polygon of polygons) {
+          for (const coordinate of polygon[0]) bounds.extend([coordinate[0], coordinate[1]])
+        }
+      } else {
+        for (const place of filteredPlaces) bounds.extend(place.coords)
+      }
+      map.fitBounds(bounds, {
+        padding: { top: 160, bottom: 48, left: 48, right: 48 },
+        maxZoom: 8,
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600,
+      })
+    }
+  }, [sourceData, filteredPlaces, stateBoundaryData])
 
   useEffect(() => {
     if (isActive) mainRef.current?.focus({ preventScroll: true })
@@ -120,6 +172,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     }
 
     mapRef.current = map
+    const markers = markersRef.current
     map.addControl(new mapboxgl.NavigationControl({ showCompass: true, visualizePitch: true }), 'bottom-right')
     const locate = new mapboxgl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
@@ -141,7 +194,6 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     map.on('error', () => {
       if (!map.isStyleLoaded()) {
         setIsLoading(false)
-        setMessage('The map could not load. Check your connection and Mapbox token, then reload.')
         onReady()
       }
     })
@@ -149,60 +201,80 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     map.on('load', () => {
       setIsLoading(false)
       setMessage('')
-      map.addImage('place-pin', makePinImage(), { pixelRatio: 2 })
+      map.addSource('selected-state', { type: 'geojson', data: stateBoundaryDataRef.current })
+      map.addLayer({
+        id: 'selected-state-fill', type: 'fill', source: 'selected-state', slot: 'bottom',
+        paint: { 'fill-color': '#7050bd', 'fill-opacity': 0.14 },
+      })
+      map.addLayer({
+        id: 'selected-state-edge', type: 'line', source: 'selected-state', slot: 'bottom',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#7050bd', 'line-width': 1.5, 'line-blur': 0.5, 'line-opacity': 0.65 },
+      })
       map.addSource('places', {
-        type: 'geojson', data: places, cluster: true, clusterMaxZoom: 12, clusterRadius: 50,
+        type: 'geojson', data: sourceDataRef.current,
+        cluster: true, clusterMaxZoom: 12, clusterRadius: 90,
+        clusterProperties: {
+          minPrice: ['min', ['get', 'price']],
+          maxPrice: ['max', ['get', 'price']],
+        },
+      })
+      // Keep the source active while HTML markers display prices and cluster ranges.
+      map.addLayer({
+        id: 'places-source', type: 'circle', source: 'places',
+        paint: { 'circle-radius': 0, 'circle-opacity': 0 },
       })
 
-      for (const clustered of [true, false]) {
-        map.addLayer({
-          id: clustered ? 'clusters' : 'unclustered-point',
-          type: 'symbol',
-          source: 'places',
-          filter: clustered ? ['has', 'point_count'] : ['!', ['has', 'point_count']],
-          layout: {
-            'icon-image': 'place-pin',
-            'icon-size': clustered ? bySize(1) : 1,
-            'icon-anchor': 'bottom',
-            'icon-offset': [0, 4], // Compensate for the shadow padding at pixelRatio 2.
-            'icon-allow-overlap': true,
-            'text-field': clustered ? ['get', 'point_count_abbreviated'] : '1',
-            'text-font': ['Arial Unicode MS Bold'],
-            'text-size': clustered ? bySize(13) : 13,
-            'text-anchor': 'center',
-            'text-offset': [0, -2.1],
-            'text-allow-overlap': true,
-          },
-          paint: { 'text-color': '#ffffff' },
-        })
+      function updateMarkers() {
+        if (!map.isSourceLoaded('places')) return
+        const visible = new Set<string>()
+        for (const feature of map.querySourceFeatures('places')) {
+          if (feature.geometry.type !== 'Point' || !feature.properties) continue
+          const properties = feature.properties
+          const clustered = Boolean(properties.cluster)
+          const id = clustered ? `cluster-${properties.cluster_id}` : `place-${properties.name}`
+          if (visible.has(id)) continue
+          visible.add(id)
+          if (markers.has(id)) continue
+
+          const coordinates = feature.geometry.coordinates as [number, number]
+          const price = formatPrice.format(Number(clustered ? properties.minPrice : properties.price))
+          const maxPrice = clustered ? formatPrice.format(Number(properties.maxPrice)) : price
+          const element = document.createElement('div')
+          element.className = 'price-marker'
+          const button = document.createElement('button')
+          button.type = 'button'
+          button.className = 'price-marker__button'
+          button.setAttribute('aria-label', clustered
+            ? `${properties.point_count} sample locations, estimated prices ${price} to ${maxPrice}. Zoom in`
+            : `${properties.name}, estimated price ${price}. View location`)
+          button.textContent = clustered ? `${price} – ${maxPrice}` : price
+          element.append(button)
+          button.addEventListener('click', (event) => {
+            event.stopPropagation()
+            popupRef.current?.remove()
+            if (clustered) {
+              const source = map.getSource('places') as mapboxgl.GeoJSONSource
+              source.getClusterExpansionZoom(Number(properties.cluster_id), (error, zoom) => {
+                if (!error && zoom != null && mapRef.current === map) {
+                  map.easeTo({ center: coordinates, zoom })
+                }
+              })
+              return
+            }
+            const place = placesByName.get(String(properties.name))
+            if (place) openHospitalCard(place)
+          })
+          markers.set(id, new mapboxgl.Marker({ element, anchor: 'center' }).setLngLat(coordinates).addTo(map))
+        }
+        for (const [id, marker] of markers) {
+          if (!visible.has(id)) {
+            marker.remove()
+            markers.delete(id)
+          }
+        }
       }
-
-      map.on('click', 'clusters', (event) => {
-        const feature = event.features?.[0]
-        if (!feature || feature.geometry.type !== 'Point') return
-        const center = feature.geometry.coordinates as [number, number]
-        const source = map.getSource('places') as mapboxgl.GeoJSONSource
-        source.getClusterExpansionZoom(Number(feature.properties?.cluster_id), (error, zoom) => {
-          if (!error && zoom != null && mapRef.current === map) map.easeTo({ center, zoom })
-        })
-      })
-
-      map.on('click', 'unclustered-point', (event) => {
-        const feature = event.features?.[0]
-        if (!feature || feature.geometry.type !== 'Point') return
-        const coordinates = feature.geometry.coordinates as [number, number]
-        popupRef.current?.remove()
-        popupRef.current = new mapboxgl.Popup({ offset: [0, -42] })
-          .setLngLat(coordinates)
-          .setText(String(feature.properties?.name ?? 'Sample location'))
-          .addTo(map)
-        map.flyTo({ center: coordinates, zoom: Math.max(map.getZoom(), 14), offset: [0, 80] })
-      })
-
-      for (const layer of ['clusters', 'unclustered-point']) {
-        map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer' })
-        map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = '' })
-      }
+      map.on('render', updateMarkers)
       onReady()
     })
 
@@ -211,32 +283,35 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     return () => {
       removeLocationIconObserver()
       resizeObserver.disconnect()
+      for (const marker of markers.values()) marker.remove()
+      markers.clear()
       popupRef.current?.remove()
       popupRef.current = null
       mapRef.current = null
       map.remove()
     }
-  }, [onReady])
+  }, [onReady, openHospitalCard])
 
   function selectPlace(place: Place) {
     const map = mapRef.current
     if (!map || isLoading) return
-    setMessage('')
-    popupRef.current?.remove()
-    popupRef.current = new mapboxgl.Popup({ offset: [0, -42] })
-      .setLngLat(place.coords).setText(place.name).addTo(map)
-    map.flyTo({ center: place.coords, zoom: 14, offset: [0, 80] })
+    openHospitalCard(place)
   }
 
   return (
     <main className="price-map" ref={mainRef} tabIndex={-1} aria-label="Explore prices map">
       <h1 className="sr-only">Explore prices</h1>
       <div className="price-map__canvas" ref={containerRef} />
+      {hospitalInfo && createPortal(
+        <HospitalCard key={hospitalInfo.place.name} place={hospitalInfo.place} onClose={closeHospitalCard} />,
+        hospitalInfo.container,
+      )}
       <header className="price-map__header">
         <a className="wordmark price-map__home" href="./" aria-label="OpenChart home">
           <span>OpenChart<span className="title-period">.</span></span>
         </a>
-        <MapSearch places={samplePlaces} disabled={isLoading} onSelect={selectPlace} />
+        <MapSearch places={samplePlaces} disabled={isLoading} onSelect={selectPlace}
+          selectedState={selectedState} onStateChange={setSelectedState} />
       </header>
       {message && (
         <div className="price-map__status" role="status">

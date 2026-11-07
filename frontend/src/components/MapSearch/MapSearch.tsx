@@ -1,15 +1,18 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import SearchDropdown from '../SearchDropdown/SearchDropdown'
 import type { Place } from '../samplePlaces'
+import { filterPlacesByState, getPlaceState, stateNames } from '../placeFilters'
 import './MapSearch.css'
 
 type MapSearchProps = {
   places: Place[]
   disabled: boolean
   onSelect: (place: Place) => void
+  selectedState: string
+  onStateChange: (state: string) => void
 }
 
-export default function MapSearch({ places, disabled, onSelect }: MapSearchProps) {
+export default function MapSearch({ places, disabled, onSelect, selectedState, onStateChange }: MapSearchProps) {
   const listboxId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -19,7 +22,10 @@ export default function MapSearch({ places, disabled, onSelect }: MapSearchProps
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const normalizedQuery = query.trim().toLowerCase()
-  const results = places.filter((place) => place.name.toLowerCase().includes(normalizedQuery))
+  const states = [...new Set(places.map(getPlaceState))].filter((state) => state && state !== 'DC')
+    .sort((a, b) => (stateNames[a] ?? a).localeCompare(stateNames[b] ?? b))
+  const results = filterPlacesByState(places, selectedState)
+    .filter((place) => place.name.toLowerCase().includes(normalizedQuery))
   const showClear = inputFocused && query.trim().length > 0
 
   useEffect(() => {
@@ -44,6 +50,13 @@ export default function MapSearch({ places, disabled, onSelect }: MapSearchProps
     setQuery('')
     setActiveIndex(-1)
     setOpen(true)
+  }
+
+  function changeState(state: string) {
+    setQuery('')
+    setActiveIndex(-1)
+    setOpen(true)
+    onStateChange(state)
   }
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
@@ -91,7 +104,7 @@ export default function MapSearch({ places, disabled, onSelect }: MapSearchProps
           ref={inputRef} type="search" role="combobox" aria-label="Search sample cities"
           aria-autocomplete="list" aria-expanded={open} aria-controls={listboxId}
           aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
-          autoComplete="off" placeholder="Search sample cities…" value={query}
+          autoComplete="off" placeholder={selectedState ? `Search cities in ${selectedState}…` : 'Search sample cities…'} value={query}
           onFocus={() => { setInputFocused(true); setOpen(true) }}
           onChange={(event) => { setQuery(event.target.value); setActiveIndex(-1); setOpen(true) }}
           onKeyDown={handleKeys}
@@ -115,6 +128,7 @@ export default function MapSearch({ places, disabled, onSelect }: MapSearchProps
       <SearchDropdown
         id={listboxId} open={open} results={results} activeIndex={activeIndex}
         disabled={disabled} onActivate={setActiveIndex} onSelect={selectPlace}
+        states={states} selectedState={selectedState} onStateChange={changeState}
       />
     </div>
   )
