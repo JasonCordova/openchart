@@ -162,7 +162,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         pitch: 25,
         maxPitch: 75,
         attributionControl: false,
-        config: { basemap: { theme: 'faded' } },
+        config: { basemap: { theme: 'monochrome', lightPreset: 'dusk' } },
       })
     } catch {
       setIsLoading(false)
