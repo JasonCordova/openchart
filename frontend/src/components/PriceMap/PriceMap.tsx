@@ -159,10 +159,10 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         fitBoundsOptions: { padding: 32 },
         maxBounds: PAN_LIMIT,
         minZoom: 3,
-        pitch: 25,
+        pitch: 0,
         maxPitch: 75,
         attributionControl: false,
-        config: { basemap: { theme: 'monochrome', lightPreset: 'dusk' } },
+        config: { basemap: { theme: 'faded' } },
       })
     } catch {
       setIsLoading(false)
