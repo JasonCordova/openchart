@@ -1,2 +1,5 @@
 /docs
 .env
+AGENTS.md
+ARCHITECTURE.md
+SYSTEM_DESIGN.md

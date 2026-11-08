@@ -1,0 +1,43 @@
+.map-search { position: relative; width: min(420px, 100%); min-width: 0; pointer-events: auto; }
+.map-search__field { display: flex; align-items: center; border: 1px solid rgb(40 24 66 / 12%); border-radius: 999px; background: #fff; box-shadow: 0 4px 20px rgb(30 20 50 / 12%); overflow: hidden; }
+.map-search__field input { width: 100%; min-width: 0; min-height: 40px; padding: 12px 4px 12px 20px; border: 0; outline: none; box-shadow: none; background: transparent; color: inherit; font: inherit; font-size: 14px; line-height: 20px; }
+.map-search__field button { display: grid; place-items: center; flex-shrink: 0; width: 32px; height: 32px; margin: 0 6px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #4b4b50; cursor: pointer; transition: background-color 180ms ease-out, color 180ms ease-out; }
+.map-search__field button svg { width: 20px; height: 20px; }
+.map-search__field button:disabled { opacity: 0.5; cursor: wait; }
+.map-search__field button:is(:hover, :focus-visible):enabled { background: #eeeeef; color: #4b4b50; }
+.map-search__field:focus-within { border-color: #b6a1dc; }
+.map-search__field input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+.map-search__field button.map-search__clear {
+  width: 20px;
+  height: 20px;
+  margin: 0 2px 0 6px;
+  background: #55575d;
+  color: #f5f5f7;
+  font: 400 20px/1 Arial, sans-serif;
+  opacity: 0;
+  transform: translateY(100%);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease-out, transform 180ms ease-out, background-color 120ms ease-out;
+}
+
+.map-search__field button.map-search__clear[data-visible='true'] {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.map-search__field button.map-search__clear:is(:hover, :focus-visible):enabled {
+  background: #3e4046;
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .map-search { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-search__field button { transition: none; }
+}

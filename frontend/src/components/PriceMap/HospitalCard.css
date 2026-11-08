@@ -1,0 +1,38 @@
+.price-map .hospital-popup { z-index: 3; }
+.price-map .hospital-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 32px rgb(30 20 50 / 22%), 0 2px 8px rgb(30 20 50 / 10%);
+}
+
+.hospital-card {
+  width: min(292px, calc(100vw - 40px));
+  overflow: hidden;
+  border-radius: 16px;
+  color: #241b39;
+  font-family: 'DM Sans', sans-serif;
+  animation: hospital-card-enter 180ms ease-out;
+}
+
+.hospital-card__photo { position: relative; aspect-ratio: 16 / 9; background: #ece7f4; }
+.hospital-card__photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.hospital-card__photo-fallback { display: grid; height: 100%; place-items: center; color: #7050bd; font-size: 14px; }
+.hospital-card__close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #463a56; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); cursor: pointer; transition: background-color 150ms ease; }
+.hospital-card__close:hover { background: #f0eaf8; }
+.hospital-card__close svg { width: 14px; height: 14px; }
+.hospital-card__body { padding: 16px; }
+.hospital-card__price { margin: 14px 0 0; color: #7050bd; font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.5px; }
+.hospital-card__price span { margin-left: 3px; color: #8a8195; font-size: 11px; font-weight: 400; letter-spacing: 0; }
+.hospital-card__town { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.3; }
+.hospital-card__address { margin: 0; color: #766b83; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+
+@keyframes hospital-card-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hospital-card { animation: none; }
+  .hospital-card__close { transition: none; }
+}
