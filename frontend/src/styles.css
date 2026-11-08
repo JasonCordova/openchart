@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700;900&display=swap');
 
 :root {
-  --page-exit-duration: 1100ms;
+  --page-exit-duration: 450ms;
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   color: #faf8ff;
   background: #000;

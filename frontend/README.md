@@ -24,7 +24,7 @@ npm run preview
 
 The build command checks TypeScript and creates the static production site in `dist/`. This page does not require a backend or AWS credentials. Procedure search is not implemented yet.
 
-“Explore prices” starts loading the map while blurring the landing page and fading its content to transparent over 1.1 seconds with ease-out timing. Once the map is ready and the landing transition finishes, the map fades in over 1.1 seconds with the same ease-out timing above the original gradient colors. The landing page is removed when the map is fully visible. There is no separate loading screen. Background motion pauses during the transition; visitors who prefer reduced motion skip the animations. Mapbox is loaded in a separate bundle after entering the explorer.
+“Explore prices” starts loading the map while blurring the landing page and fading its content to transparent over 0.45 seconds with ease-out timing. Once the map is ready and the landing transition finishes, the map fades in over 0.45 seconds with the same ease-out timing above the original gradient colors. The landing page is removed when the map is fully visible. There is no separate loading screen. Background motion pauses during the transition; visitors who prefer reduced motion skip the animations. Mapbox is loaded in a separate bundle after entering the explorer.
 
 ## Mapbox explorer
 
