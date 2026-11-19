@@ -1,39 +1,53 @@
 <h1 align="center">OpenChart</h1>
 
-OpenChart is a planned public website for comparing hospital-published procedure prices by location. It aims to make pricing easier to explore, with clear sources and context.
+OpenChart displays hospital locations using a React/Mapbox frontend and a Java
+Spring Boot API backed by local MySQL.
 
-The project's core is its architecture: **AWS, Spring Boot, semantic search, vector
-storage, and RAG**. Follow the [architecture guide](ARCHITECTURE.md) for every
-component decision: evaluate AWS first, then implement custom behavior in Spring Boot.
-The confirmed total recurring project budget is **under $50/month**.
-The [system design](SYSTEM_DESIGN.md) details the hospital map, procedure search,
-RAG, and hospital price-file pipeline.
+## Run locally
 
-The initial catalog covers **10-20 curated common procedures**. Users can browse
-hospital locations without choosing a procedure. Once a procedure is selected,
-the map and results show only hospitals with a valid, comparable published price
-for that procedure.
+Configure your MySQL credentials in `backend/.env` using
+[backend/.env.example](backend/.env.example). Keep credentials in that ignored file.
 
-## Hospital directory
+From the repository root:
 
-A public hospital directory is available in [data/hospitals](data/hospitals/README.md),
-with SQLite, CSV, GeoJSON, and a PostgreSQL import. The November 7, 2026 HRSA snapshot
-contains 6,761 hospital/provider records; 6,760 have coordinates. See its documentation
-for coverage, missing addresses, legacy entries, and refresh instructions.
+```powershell
+cd backend
+mvn spring-boot:run
+```
 
-## Proposed stack
+In a second terminal, from the repository root:
 
-| Component | Choice |
-| --- | --- |
-| Frontend | React, TypeScript, Vite |
-| DNS and HTTPS certificates | Amazon Route 53 and AWS Certificate Manager |
-| Frontend delivery | Amazon CloudFront and a private S3 bucket |
-| Public API | Amazon API Gateway HTTP API |
-| Backend integration | VPC Link and AWS Cloud Map to Spring Boot on EC2 |
-| Ingestion | Spring Batch worker; EventBridge Scheduler and SQS |
-| Hospital and price records | PostgreSQL on EC2 initially; evaluate RDS against budget |
-| Vector storage and semantic retrieval | S3 Vectors and Amazon Bedrock Knowledge Bases |
-| Embeddings and required RAG | Amazon Bedrock; Spring AI integration |
-| Pilot compute and persistence | One AWS EC2 instance, Docker Compose, EBS; PostgreSQL stays private |
-| Raw source files and backups | Private Amazon S3 buckets |
-| Infrastructure and delivery | AWS CDK in TypeScript, GitHub Actions with AWS OIDC |
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the URL printed by Vite, normally <http://localhost:5173>.
+The API runs on <http://127.0.0.1:8080/api/hospitals> and reads the existing
+`mapbox.hospitals` table. See [backend instructions](backend/README.md) and
+[frontend instructions](frontend/README.md) for configuration and build commands.
+
+The map supports native Mapbox clustering, purple circular counts, hospital
+search, state filtering, hospital cards, and website links. Hospital images are
+labeled placeholders. Procedure prices and comparisons are not implemented yet.
+
+## Hospital data
+
+[HOSPITAL_DATA.md](HOSPITAL_DATA.md) describes the current database mapping and
+website verification. The one-time enrichment utility has been removed from the
+application code. Source snapshots, verification evidence and rollback files stay
+under the ignored `data/hospitals/generated/` directory.
+
+## Planned architecture
+
+AWS, Spring Boot, semantic search, vector storage and RAG remain project
+requirements. The first procedure catalog is limited to 10-20 curated procedures.
+Procedure comparisons must include only hospitals with valid, comparable
+published prices; unsupported requests must be identified explicitly.
+
+The total recurring budget is **under $50/month**. Follow
+[ARCHITECTURE.md](ARCHITECTURE.md), [PILOT_PLAN.md](PILOT_PLAN.md), and the dated
+[AWS estimate](AWS_COST_ESTIMATE.md) before provisioning. The former RDS bootstrap
+and PostgreSQL import utilities have been retired; these documents describe future
+deployment plans, not currently provisioned infrastructure.

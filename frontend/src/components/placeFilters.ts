@@ -1,4 +1,4 @@
-import type { Place } from './samplePlaces'
+import type { Hospital as Place } from '../api/hospitals'
 
 export const stateNames: Record<string, string> = {
   AL: 'Alabama',
@@ -52,11 +52,17 @@ export const stateNames: Record<string, string> = {
   WV: 'West Virginia',
   WI: 'Wisconsin',
   WY: 'Wyoming',
+  PR: 'Puerto Rico',
+  VI: 'Virgin Islands',
+  GU: 'Guam',
+  AS: 'American Samoa',
+  MP: 'Northern Mariana Islands',
 }
 
 export function getPlaceState(place: Place): string {
-  const separator = place.name.lastIndexOf(', ')
-  return separator === -1 ? '' : place.name.slice(separator + 2)
+  const state = place.state.trim()
+  return Object.entries(stateNames).find(([code, name]) =>
+    code.toLowerCase() === state.toLowerCase() || name.toLowerCase() === state.toLowerCase())?.[0] ?? state
 }
 
 export function filterPlacesByState(places: Place[], state: string): Place[] {

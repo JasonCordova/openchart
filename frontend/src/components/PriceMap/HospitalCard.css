@@ -16,14 +16,17 @@
 }
 
 .hospital-card__photo { position: relative; aspect-ratio: 16 / 9; background: #ece7f4; }
+.hospital-card__photo-label { position: absolute; bottom: 8px; left: 10px; padding: 3px 7px; border-radius: 5px; background: rgb(255 255 255 / 90%); color: #5d467f; font-size: 10px; }
+.hospital-card__website { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; color: #7050bd; font-size: 13px; font-weight: 600; text-decoration: none; }
+.hospital-card__website:hover { text-decoration: underline; }
+.hospital-card__website svg { width: 17px; height: 17px; }
+.hospital-card__website-unavailable { margin: 14px 0 0; color: #8a8195; font-size: 12px; }
 .hospital-card__photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .hospital-card__photo-fallback { display: grid; height: 100%; place-items: center; color: #7050bd; font-size: 14px; }
 .hospital-card__close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: #fff; color: #463a56; box-shadow: 0 2px 8px rgb(0 0 0 / 12%); cursor: pointer; transition: background-color 150ms ease; }
 .hospital-card__close:hover { background: #f0eaf8; }
 .hospital-card__close svg { width: 14px; height: 14px; }
 .hospital-card__body { padding: 16px; }
-.hospital-card__price { margin: 14px 0 0; color: #7050bd; font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.5px; }
-.hospital-card__price span { margin-left: 3px; color: #8a8195; font-size: 11px; font-weight: 400; letter-spacing: 0; }
 .hospital-card__town { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.3; }
 .hospital-card__address { margin: 0; color: #766b83; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 

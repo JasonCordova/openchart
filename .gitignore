@@ -3,3 +3,5 @@
 AGENTS.md
 ARCHITECTURE.md
 SYSTEM_DESIGN.md
+/data/hospitals/generated/
+/backend/.local/

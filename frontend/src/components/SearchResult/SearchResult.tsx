@@ -1,4 +1,4 @@
-import type { Place } from '../samplePlaces'
+import type { Hospital as Place } from '../../api/hospitals'
 import './SearchResult.css'
 
 type SearchResultProps = {
@@ -11,9 +11,6 @@ type SearchResultProps = {
 }
 
 export default function SearchResult({ id, place, active, disabled, onActivate, onSelect }: SearchResultProps) {
-  const separator = place.name.lastIndexOf(', ')
-  const city = separator === -1 ? place.name : place.name.slice(0, separator)
-  const state = separator === -1 ? 'United States' : place.name.slice(separator + 2)
 
   return (
     <li
@@ -33,8 +30,8 @@ export default function SearchResult({ id, place, active, disabled, onActivate, 
         </svg>
       </span>
       <span className="search-result__text">
-        <span className="search-result__name">{city}</span>
-        <span className="search-result__detail">{state} · Sample location</span>
+        <span className="search-result__name">{place.name}</span>
+        <span className="search-result__detail">{[place.city, place.state].filter(Boolean).join(', ')}</span>
       </span>
       <svg className="search-result__arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M7 17 17 7M7 7h10v10" />

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import SearchDropdown from '../SearchDropdown/SearchDropdown'
-import type { Place } from '../samplePlaces'
+import type { Hospital as Place } from '../../api/hospitals'
 import { filterPlacesByState, getPlaceState, stateNames } from '../placeFilters'
 import './MapSearch.css'
 
@@ -22,10 +22,11 @@ export default function MapSearch({ places, disabled, onSelect, selectedState, o
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const normalizedQuery = query.trim().toLowerCase()
-  const states = [...new Set(places.map(getPlaceState))].filter((state) => state && state !== 'DC')
+  const states = [...new Set(places.map(getPlaceState))].filter(Boolean)
     .sort((a, b) => (stateNames[a] ?? a).localeCompare(stateNames[b] ?? b))
   const results = filterPlacesByState(places, selectedState)
-    .filter((place) => place.name.toLowerCase().includes(normalizedQuery))
+    .filter((place) => `${place.name} ${place.address} ${place.city} ${place.state} ${place.zipcode}`.toLowerCase().includes(normalizedQuery))
+    .slice(0, 50)
   const showClear = inputFocused && query.trim().length > 0
 
   useEffect(() => {
@@ -101,11 +102,12 @@ export default function MapSearch({ places, disabled, onSelect, selectedState, o
         }}
       >
         <input
-          ref={inputRef} type="search" role="combobox" aria-label="Search sample cities"
+          ref={inputRef} type="search" role="combobox" aria-label="Search hospitals by name or location"
           aria-autocomplete="list" aria-expanded={open} aria-controls={listboxId}
           aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
-          autoComplete="off" placeholder={selectedState ? `Search cities in ${selectedState}…` : 'Search sample cities…'} value={query}
+          autoComplete="off" placeholder={selectedState ? `Search hospitals in ${selectedState}…` : 'Search hospitals or cities…'} value={query}
           onFocus={() => { setInputFocused(true); setOpen(true) }}
+          onClick={() => setOpen(true)}
           onChange={(event) => { setQuery(event.target.value); setActiveIndex(-1); setOpen(true) }}
           onKeyDown={handleKeys}
         />
@@ -118,7 +120,7 @@ export default function MapSearch({ places, disabled, onSelect, selectedState, o
         >
           <span aria-hidden="true">×</span>
         </button>
-        <button type="submit" disabled={disabled} aria-label="Search cities" title="Search cities">
+        <button type="submit" disabled={disabled} aria-label="Search hospitals" title="Search hospitals">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <circle cx="10.5" cy="10.5" r="6.5" />
             <path d="m15.5 15.5 5 5" />
