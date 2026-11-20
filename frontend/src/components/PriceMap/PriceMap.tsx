@@ -236,8 +236,8 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
       map.addSource('places', {
         type: 'geojson', data: sourceDataRef.current,
         cluster: true,
-        clusterRadius: 50,
-        clusterMaxZoom: 14,
+        clusterRadius: 70,
+        clusterMaxZoom: 50,
       })
       // Keep clustering in Mapbox; count markers sit above the canvas and map lines.
       map.addLayer({
