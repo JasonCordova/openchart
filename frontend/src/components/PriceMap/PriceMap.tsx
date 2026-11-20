@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import mapboxgl from 'mapbox-gl'
 import type { FeatureCollection, Point } from 'geojson'
-import { samplePlaces, type Place } from '../samplePlaces'
+import { fetchHospitals, type Hospital as Place } from '../../api/hospitals'
 import MapSearch from '../MapSearch/MapSearch'
 import { filterPlacesByState } from '../placeFilters'
 import { getStateBoundaryData } from './stateBoundaries'
@@ -11,17 +11,12 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import './PriceMap.css'
 
 const CONTIGUOUS_US: mapboxgl.LngLatBoundsLike = [[-125.5, 24], [-66, 49.8]]
-const PAN_LIMIT: mapboxgl.LngLatBoundsLike = [[-130, 20], [-60, 53]]
-const formatPrice = new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', maximumFractionDigits: 0,
-})
-const placesByName = new Map(samplePlaces.map((place) => [place.name, place]))
-function toPlacesData(places: Place[]): FeatureCollection<Point, { name: string; price: number }> {
+function toPlacesData(places: Place[]): FeatureCollection<Point, { id: number; name: string }> {
   return {
     type: 'FeatureCollection',
-    features: places.map(({ name, coords, price }) => ({
+    features: places.map(({ id, name, coords }) => ({
       type: 'Feature',
-      properties: { name, price },
+      properties: { id, name },
       geometry: { type: 'Point', coordinates: coords },
     })),
   }
@@ -65,16 +60,42 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
   const mainRef = useRef<HTMLElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const popupRef = useRef<mapboxgl.Popup | null>(null)
+  const markersRef = useRef(new Map<string, mapboxgl.Marker>())
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [selectedState, setSelectedState] = useState('')
+  const [places, setPlaces] = useState<Place[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState('')
+  const [unmapped, setUnmapped] = useState(0)
+  const [refresh, setRefresh] = useState(0)
+  const placesByIdRef = useRef(new Map<number, Place>())
   const [hospitalInfo, setHospitalInfo] = useState<{ place: Place; container: HTMLElement } | null>(null)
-  const filteredPlaces = useMemo(() => filterPlacesByState(samplePlaces, selectedState), [selectedState])
+  const filteredPlaces = useMemo(() => filterPlacesByState(places, selectedState), [places, selectedState])
   const sourceData = useMemo(() => toPlacesData(filteredPlaces), [filteredPlaces])
   const sourceDataRef = useRef(sourceData)
   const stateBoundaryData = useMemo(() => getStateBoundaryData(selectedState), [selectedState])
   const stateBoundaryDataRef = useRef(stateBoundaryData)
-  const markersRef = useRef(new Map<string, mapboxgl.Marker>())
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 20000)
+    let active = true
+    setDataLoading(true)
+    setDataError('')
+    fetchHospitals(controller.signal).then(({ hospitals, unmapped }) => {
+      if (!active) return
+      placesByIdRef.current = new Map(hospitals.map((hospital) => [hospital.id, hospital]))
+      setPlaces(hospitals)
+      setUnmapped(unmapped)
+    }).catch(() => {
+      if (active) setDataError('Hospitals could not be loaded. Check that the backend and MySQL are running, then retry.')
+    }).finally(() => {
+      window.clearTimeout(timeout)
+      if (active) setDataLoading(false)
+    })
+    return () => { active = false; window.clearTimeout(timeout); controller.abort() }
+  }, [refresh])
 
   const openHospitalCard = useCallback((place: Place) => {
     const map = mapRef.current
@@ -94,7 +115,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         setHospitalInfo(null)
       }
     })
-    map.flyTo({ center: place.coords, zoom: Math.max(map.getZoom(), 14), offset: [0, 140] })
+    map.flyTo({ center: place.coords, zoom: Math.max(map.getZoom(), 15), offset: [0, 140] })
   }, [])
 
   function closeHospitalCard() {
@@ -116,7 +137,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     source.setData(sourceData)
     const boundarySource = map.getSource('selected-state') as mapboxgl.GeoJSONSource | undefined
     boundarySource?.setData(stateBoundaryData)
-    if (filteredPlaces.length > 0) {
+    if (filteredPlaces.length > 0 && selectedState) {
       const bounds = new mapboxgl.LngLatBounds()
       const boundary = stateBoundaryData.features[0]
       if (boundary) {
@@ -133,8 +154,10 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         maxZoom: 8,
         duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600,
       })
+    } else if (!selectedState) {
+      map.fitBounds(CONTIGUOUS_US, { padding: 32, duration: 600 })
     }
-  }, [sourceData, filteredPlaces, stateBoundaryData])
+  }, [sourceData, filteredPlaces, stateBoundaryData, selectedState])
 
   useEffect(() => {
     if (isActive) mainRef.current?.focus({ preventScroll: true })
@@ -157,8 +180,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         style: 'mapbox://styles/mapbox/standard',
         bounds: CONTIGUOUS_US,
         fitBoundsOptions: { padding: 32 },
-        maxBounds: PAN_LIMIT,
-        minZoom: 3,
+        minZoom: 1,
         pitch: 0,
         maxPitch: 75,
         attributionControl: false,
@@ -173,6 +195,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
 
     mapRef.current = map
     const markers = markersRef.current
+    let markerFrame = 0
     map.addControl(new mapboxgl.NavigationControl({ showCompass: true, visualizePitch: true }), 'bottom-right')
     const locate = new mapboxgl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
@@ -189,7 +212,6 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
         ? 'Location access is blocked. Allow location in your browser settings and try again.'
         : 'Your location is unavailable. Try the location button again.')
     })
-    locate.on('outofmaxbounds', () => setMessage('Your location is outside the supported US map area.'))
     locate.on('geolocate', () => setMessage(''))
     map.on('error', () => {
       if (!map.isStyleLoaded()) {
@@ -213,68 +235,77 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
       })
       map.addSource('places', {
         type: 'geojson', data: sourceDataRef.current,
-        cluster: true, clusterMaxZoom: 12, clusterRadius: 90,
-        clusterProperties: {
-          minPrice: ['min', ['get', 'price']],
-          maxPrice: ['max', ['get', 'price']],
-        },
+        cluster: true,
+        clusterRadius: 70,
+        clusterMaxZoom: 50,
       })
-      // Keep the source active while HTML markers display prices and cluster ranges.
+      // Keep clustering in Mapbox; count markers sit above the canvas and map lines.
       map.addLayer({
         id: 'places-source', type: 'circle', source: 'places',
         paint: { 'circle-radius': 0, 'circle-opacity': 0 },
       })
-
       function updateMarkers() {
         if (!map.isSourceLoaded('places')) return
         const visible = new Set<string>()
+        const { width, height } = map.getCanvas().getBoundingClientRect()
         for (const feature of map.querySourceFeatures('places')) {
           if (feature.geometry.type !== 'Point' || !feature.properties) continue
+          const coordinates = feature.geometry.coordinates as [number, number]
+          const point = map.project(coordinates)
+          if (point.x < -30 || point.x > width + 30 || point.y < 0 || point.y > height + 45) continue
           const properties = feature.properties
           const clustered = Boolean(properties.cluster)
-          const id = clustered ? `cluster-${properties.cluster_id}` : `place-${properties.name}`
+          const id = clustered ? `cluster-${properties.cluster_id}` : `hospital-${properties.id}`
           if (visible.has(id)) continue
           visible.add(id)
           if (markers.has(id)) continue
 
-          const coordinates = feature.geometry.coordinates as [number, number]
-          const price = formatPrice.format(Number(clustered ? properties.minPrice : properties.price))
-          const maxPrice = clustered ? formatPrice.format(Number(properties.maxPrice)) : price
           const element = document.createElement('div')
           element.className = 'price-marker'
           const button = document.createElement('button')
           button.type = 'button'
           button.className = 'price-marker__button'
-          button.setAttribute('aria-label', clustered
-            ? `${properties.point_count} sample locations, estimated prices ${price} to ${maxPrice}. Zoom in`
-            : `${properties.name}, estimated price ${price}. View location`)
-          button.textContent = clustered ? `${price} – ${maxPrice}` : price
+          const count = clustered ? Number(properties.point_count) : 1
+          element.dataset.clusterSize = String(count)
+          if (clustered) element.dataset.clusterId = String(properties.cluster_id)
+          else element.dataset.hospitalId = String(properties.id)
+          element.title = clustered ? `${count} hospitals. Zoom in` : String(properties.name)
+          button.setAttribute('aria-label', element.title)
+          button.textContent = String(count)
           element.append(button)
-          button.addEventListener('click', (event) => {
-            event.stopPropagation()
+          const marker = new mapboxgl.Marker({ element, anchor: 'center' }).setLngLat(coordinates)
+          const select = () => {
             popupRef.current?.remove()
             if (clustered) {
               const source = map.getSource('places') as mapboxgl.GeoJSONSource
+              const data = sourceDataRef.current
               source.getClusterExpansionZoom(Number(properties.cluster_id), (error, zoom) => {
-                if (!error && zoom != null && mapRef.current === map) {
+                if (!error && zoom != null && mapRef.current === map && sourceDataRef.current === data) {
                   map.easeTo({ center: coordinates, zoom })
                 }
               })
-              return
+            } else {
+              const place = placesByIdRef.current.get(Number(properties.id))
+              if (place) openHospitalCard(place)
             }
-            const place = placesByName.get(String(properties.name))
-            if (place) openHospitalCard(place)
-          })
-          markers.set(id, new mapboxgl.Marker({ element, anchor: 'center' }).setLngLat(coordinates).addTo(map))
+          }
+          button.addEventListener('click', (event) => { event.stopPropagation(); select() })
+          markers.set(id, marker.addTo(map))
         }
         for (const [id, marker] of markers) {
-          if (!visible.has(id)) {
-            marker.remove()
-            markers.delete(id)
-          }
+          if (!visible.has(id)) { marker.remove(); markers.delete(id) }
         }
       }
-      map.on('render', updateMarkers)
+      const scheduleMarkers = () => {
+        if (markerFrame) return
+        markerFrame = requestAnimationFrame(() => { markerFrame = 0; if (mapRef.current === map) updateMarkers() })
+      }
+      map.on('moveend', scheduleMarkers)
+      map.on('resize', scheduleMarkers)
+      map.on('sourcedata', (event) => {
+        if (event.sourceId === 'places') scheduleMarkers()
+      })
+      scheduleMarkers()
       onReady()
     })
 
@@ -283,6 +314,7 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
     return () => {
       removeLocationIconObserver()
       resizeObserver.disconnect()
+      cancelAnimationFrame(markerFrame)
       for (const marker of markers.values()) marker.remove()
       markers.clear()
       popupRef.current?.remove()
@@ -299,23 +331,31 @@ export default function PriceMap({ onReady, isActive }: PriceMapProps) {
   }
 
   return (
-    <main className="price-map" ref={mainRef} tabIndex={-1} aria-label="Explore prices map">
-      <h1 className="sr-only">Explore prices</h1>
+    <main className="price-map" ref={mainRef} tabIndex={-1} aria-label="Explore hospitals map">
+      <h1 className="sr-only">Explore hospitals</h1>
       <div className="price-map__canvas" ref={containerRef} />
       {hospitalInfo && createPortal(
-        <HospitalCard key={hospitalInfo.place.name} place={hospitalInfo.place} onClose={closeHospitalCard} />,
+        <HospitalCard key={hospitalInfo.place.id} place={hospitalInfo.place} onClose={closeHospitalCard} />,
         hospitalInfo.container,
       )}
       <header className="price-map__header">
         <a className="wordmark price-map__home" href="./" aria-label="OpenChart home">
           <span>OpenChart<span className="title-period">.</span></span>
         </a>
-        <MapSearch places={samplePlaces} disabled={isLoading} onSelect={selectPlace}
+        <MapSearch places={places} disabled={isLoading || dataLoading || Boolean(dataError)} onSelect={selectPlace}
           selectedState={selectedState} onStateChange={setSelectedState} />
       </header>
-      {message && (
+      {(message || dataError || dataLoading || places.length === 0) && (
         <div className="price-map__status" role="status">
-          {message}
+          {message || dataError || (dataLoading ? 'Loading hospitals…' : 'No hospitals with valid coordinates are available.')}
+          {dataError && <button type="button" onClick={() => setRefresh((value) => value + 1)}>Retry</button>}
+        </div>
+      )}
+      {!dataLoading && !dataError && places.length > 0 && (
+        <div className="price-map__directory" role="status">
+          {filteredPlaces.length.toLocaleString()} hospitals
+          {unmapped > 0 && <span> · {unmapped} without map coordinates</span>}
+          <button type="button" onClick={() => setRefresh((value) => value + 1)} aria-label="Refresh hospitals">Refresh</button>
         </div>
       )}
     </main>

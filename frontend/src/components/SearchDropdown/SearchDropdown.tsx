@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import SearchResult from '../SearchResult/SearchResult'
-import type { Place } from '../samplePlaces'
+import type { Hospital as Place } from '../../api/hospitals'
 import { stateNames } from '../placeFilters'
 import './SearchDropdown.css'
 
@@ -142,20 +142,20 @@ export default function SearchDropdown({ id, open, results, activeIndex, disable
         ) : (
           <>
             <div className="search-dropdown__results-heading">
-              <span>Locations</span>
+              <span>Hospitals · up to 50 matches</span>
               <span>{results.length} {results.length === 1 ? 'result' : 'results'}</span>
             </div>
-            <ul ref={listRef} className="search-dropdown__list" id={id} role="listbox" aria-label="Sample cities">
+            <ul ref={listRef} className="search-dropdown__list" id={id} role="listbox" aria-label="Hospitals">
               {results.map((place, index) => (
                 <SearchResult
-                  key={place.name} id={`${id}-${index}`} place={place}
+                  key={place.id} id={`${id}-${index}`} place={place}
                   active={index === activeIndex} disabled={disabled}
                   onActivate={() => onActivate(index)} onSelect={onSelect}
                 />
               ))}
             </ul>
             {results.length === 0 && (
-              <p className="search-dropdown__empty" role="status">No matching cities. Try another city or state.</p>
+              <p className="search-dropdown__empty" role="status">No matching hospitals. Try another name, city, or state.</p>
             )}
           </>
         )}
